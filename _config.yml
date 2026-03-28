@@ -4,3 +4,5 @@ plugins:
 
 title: Jun Yu, PhD
 description: Computational Biologist · Software Engineer · Data Platforms · ML Systems
+
+permalink: /blog/:year/:month/:title/

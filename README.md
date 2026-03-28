@@ -32,4 +32,4 @@ My training is in both wet lab science and software engineering, which helps whe
 
 ---
 
-*Adding repos over time.*
+[Blog](/blog/) · *Adding repos and posts over time.*
