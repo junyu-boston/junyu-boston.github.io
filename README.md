@@ -1,11 +1,3 @@
-# Jun Yu, PhD
-
-**Computational Biologist | Software Engineer | Data Platforms | ML Systems**
-
-Lexington, MA | [Email](mailto:yujun3315@gmail.com) | [LinkedIn](https://www.linkedin.com/in/yu-jun/)
-
----
-
 I have a PhD in Biochemistry and an MS in Information Systems. I spend most of my time building data pipelines, ML tooling, and cloud infrastructure. This is where I keep my public projects and experiments.
 
 ## Projects

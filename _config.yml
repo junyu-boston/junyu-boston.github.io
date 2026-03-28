@@ -1,0 +1,6 @@
+remote_theme: pages-themes/minimal@v0.2.0
+plugins:
+  - jekyll-remote-theme
+
+title: Jun Yu, PhD
+description: Computational Biologist · Software Engineer · Data Platforms · ML Systems
