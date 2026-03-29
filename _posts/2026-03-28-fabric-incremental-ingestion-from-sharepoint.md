@@ -4,6 +4,10 @@ title: "Incremental Ingestion in Microsoft Fabric: SharePoint to Lakehouse Witho
 date: 2026-03-28
 ---
 
+[Home](/) · [Blog](/blog/)
+
+---
+
 ## Incremental Ingestion in Microsoft Fabric: SharePoint to Lakehouse Without the Mess
 
 Enterprise teams accumulate data in SharePoint. Shared Excel files, monthly expense reports, tracking sheets that someone started in 2019 and never migrated. At some point, a data engineer is asked to "get this into our analytics platform." The question is not whether to ingest it — it is whether to do it in a way that survives the first schema change, the first duplicate row, and the first time someone asks "what did this look like last month?"

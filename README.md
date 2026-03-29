@@ -1,3 +1,7 @@
+[Home](/) · [Blog](/blog/)
+
+---
+
 I have a PhD in Biochemistry and an MS in Information Systems. I spend most of my time building data pipelines, ML tooling, and cloud infrastructure. This is where I keep my public projects and experiments.
 
 ## Projects
@@ -32,4 +36,4 @@ My training is in both wet lab science and software engineering, which helps whe
 
 ---
 
-[Blog](/blog/) · *Adding repos and posts over time.*
+*Adding repos and posts over time.*

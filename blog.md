@@ -4,6 +4,10 @@ title: Blog
 permalink: /blog/
 ---
 
+[Home](/) · [Blog](/blog/)
+
+---
+
 ## Blog
 
 {% for post in site.posts %}
