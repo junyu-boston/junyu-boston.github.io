@@ -1,14 +1,9 @@
 ---
-layout: default
 title: "Jekyll and GitHub Pages: What Actually Happens When You Push"
 date: 2026-03-27
+categories: [DevOps]
+tags: [jekyll, github-pages, static-sites]
 ---
-
-[Home](/) · [Blog](/blog/)
-
----
-
-## Jekyll and GitHub Pages: What Actually Happens When You Push
 
 Most developers know that GitHub Pages turns a repository into a website. Fewer know exactly what happens between `git push` and a rendered HTML page showing up at `username.github.io`. The answer is Jekyll, and the mechanism is simpler than most people assume.
 

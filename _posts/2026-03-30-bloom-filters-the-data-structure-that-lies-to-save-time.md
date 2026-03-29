@@ -1,14 +1,9 @@
 ---
-layout: default
 title: "Bloom Filters: The Data Structure That Lies to Save Time"
 date: 2026-03-30
+categories: [Computer Science]
+tags: [data-structures, bloom-filters, probabilistic, algorithms]
 ---
-
-[Home](/) · [Blog](/blog/)
-
----
-
-## Bloom Filters: The Data Structure That Lies to Save Time
 
 Most data structures give you exact answers. You ask "is this element in the set?" and you get yes or no, guaranteed correct. A Bloom filter gives you a different deal: it will never miss something that exists, but it will occasionally say "yes" when it should say "no." In exchange, it uses dramatically less memory than any exact alternative.
 

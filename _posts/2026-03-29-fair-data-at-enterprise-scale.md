@@ -1,14 +1,9 @@
 ---
-layout: default
 title: "FAIR Data at Enterprise Scale: Shift-Left Validation, Immutable Lineage, and Data Products"
 date: 2026-03-29
+categories: [Data Engineering]
+tags: [fair-data, data-mesh, data-quality, schema-registry, data-products]
 ---
-
-[Home](/) · [Blog](/blog/)
-
----
-
-## FAIR Data at Enterprise Scale: Shift-Left Validation, Immutable Lineage, and Data Products
 
 **FAIR (Findable, Accessible, Interoperable, Reusable)** started as a set of principles for open science. At enterprise scale, it becomes a distributed systems problem. Data is no longer a file on someone's laptop. It is a sharded resource spread across object stores like S3, processed by ephemeral compute clusters, and consumed by dozens of teams who have never talked to each other. Making that data findable, interoperable, and reusable requires solving for state consistency, concurrency control, and idempotency across a networked architecture.
 
