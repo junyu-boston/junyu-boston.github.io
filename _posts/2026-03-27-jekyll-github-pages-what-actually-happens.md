@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Jekyll and GitHub Pages: What Actually Happens When You Push"
-date: 2026-03-28
+date: 2026-03-27
 ---
 
 ## Jekyll and GitHub Pages: What Actually Happens When You Push
