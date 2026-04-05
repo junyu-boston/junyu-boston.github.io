@@ -19,6 +19,9 @@ package-lock.json
 .idea
 .vscode
 
+# Planning docs (not for publishing)
+plans/
+
 # Misc
 _sass/vendors
 assets/js/dist
