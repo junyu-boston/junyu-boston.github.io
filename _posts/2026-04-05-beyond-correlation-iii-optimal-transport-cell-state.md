@@ -1,6 +1,6 @@
 ---
 title: "Beyond Correlation III: Optimal Transport and the Geometry of Cell State"
-date: 2026-04-07
+date: 2026-04-05
 categories: [Mathematics]
 tags: [optimal-transport, wasserstein-distance, manifold-geometry, single-cell, computational-biology]
 math: true

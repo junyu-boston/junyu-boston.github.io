@@ -1,6 +1,6 @@
 ---
 title: "Beyond Correlation II: What Foundation Models Actually Learn — and What the Eigenspectrum Reveals"
-date: 2026-04-06
+date: 2026-04-05
 categories: [Machine Learning]
 tags: [foundation-models, model-evaluation, eigenspectrum, single-cell, computational-biology]
 math: true
