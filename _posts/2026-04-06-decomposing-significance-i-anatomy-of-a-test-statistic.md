@@ -18,7 +18,7 @@ But there is a question that almost never gets asked:
 
 > Why are those 2,000 features significant — because the effects are large, or because the variance estimates are small?
 
-This distinction matters enormously. A feature can cross a significance threshold because something real happened to it, or because the noise estimate shrank enough to make an ordinary fluctuation look extreme. In small-sample, high-dimensional settings, the second mechanism dominates far more often than most people realize.
+This distinction matters enormously. A feature can cross a significance threshold because something real happened to it, or because the noise estimate shrank enough to make an ordinary fluctuation look extreme. In small-sample, high-dimensional settings, the second mechanism can matter far more than most people realize.
 
 This series is about learning to tell the difference.
 
@@ -42,9 +42,9 @@ Both mechanisms produce the same output: a list of significant features with con
 
 ## Why count data makes this worse
 
-Continuous measurements (heights, voltages, temperatures) have a useful property: the variance and the mean are, to a first approximation, independent. You can estimate each one separately and the errors do not compound in systematic ways.
+Continuous measurements (heights, voltages, temperatures) are often treated as if the variance and the mean are, to a first approximation, independent after appropriate scaling or modeling. You can often estimate each one separately without the same built-in mean-variance coupling that count data imposes.
 
-Count data breaks this. In count data, variance is a function of the mean. Always.
+Count data makes this harder. In standard count models, the variance is tied to the mean.
 
 The simplest count model — the Poisson — enforces this rigidly:
 
@@ -91,9 +91,9 @@ This means:
 
 - **Overestimate $$\alpha_j$$** → SE is inflated → test statistic shrinks → feature is not significant (conservative)
 - **Underestimate $$\alpha_j$$** → SE is deflated → test statistic inflates → feature is significant (anti-conservative)
-- **Shrink all $$\alpha_j$$ toward a global trend** → every feature's SE is pulled toward the trend → significance is driven by the trend, not by individual feature behavior
+- **Shrink all $$\alpha_j$$ toward a global trend** → every feature's SE is pulled toward the trend → significance can become strongly influenced by the trend rather than by individual feature behavior
 
-That third case is exactly what empirical Bayes shrinkage does. And it is the default behavior of every major pipeline for this kind of analysis.
+That third case is closely related to what empirical Bayes shrinkage does, and it is a common behavior in major pipelines for this kind of analysis.
 
 ## The mean-variance plot: your first diagnostic
 
@@ -102,13 +102,13 @@ Before running any differential test, plot the mean-variance relationship. For e
 - x-axis: $$\log_{10}(\bar{\mu}_j)$$ (mean count across samples)
 - y-axis: $$\log_{10}(\hat{\sigma}^2_j)$$ (observed variance)
 
-For Poisson data, every point lies on the diagonal $$\sigma^2 = \mu$$. For NB data, points lie above the diagonal, and the vertical distance from the Poisson line is a visual measure of overdispersion.
+For Poisson data, the expected trend lies on the diagonal $$\sigma^2 = \mu$$. For NB data, points tend to lie above the diagonal, and the vertical distance from the Poisson line is a visual measure of overdispersion.
 
 Now plot the **fitted trend** — the curve that the model uses to estimate dispersion. In most pipelines, this is a smooth function of the mean. The gap between the observed scatter and the fitted trend tells you how much information each feature's variance estimate is borrowing from the global trend versus retaining from its own data.
 
 If the fitted trend is tight and the scatter is wide, the model is imposing a lot of shrinkage. Features with unusually high or low variance are being pulled hard toward the trend. This can be appropriate — or it can be masking real heterogeneity in variance structure. The plot will not resolve that ambiguity on its own, but it will show you how much trust the model places in global versus local information.
 
-This is the single most important diagnostic plot in count-based differential testing. Most practitioners generate it, glance at it, and move on. We will come back to it in Part III with sharper tools.
+This is one of the most important diagnostic plots in count-based differential testing. Most practitioners generate it, glance at it, and move on. We will come back to it in Part III with sharper tools.
 
 ## What the GLM actually estimates
 

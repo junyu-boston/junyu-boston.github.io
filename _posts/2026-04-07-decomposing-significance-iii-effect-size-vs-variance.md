@@ -22,7 +22,7 @@ The goal is concrete: after running these diagnostics, you should be able to say
 2. "Significance is driven by variance compression — the effects are small and the variance estimates are unusually tight."
 3. "Both components contribute — the effects are moderate and the variance estimates are moderately compressed."
 
-Each of these leads to a different interpretation. Only (1) supports strong claims about the underlying process. (2) means the significant features are likely artifacts of the estimation procedure. (3) requires judgment about which component dominates.
+Each of these leads to a different interpretation. Only (1) supports strong claims about the underlying process. (2) means the significance pattern may reflect variance compression more than large effects. (3) requires judgment about which component dominates.
 
 ## Diagnostic 1: The effect size distribution
 
@@ -160,32 +160,32 @@ If you are comparing two conditions and one produces more significant features, 
 - Did the median $$\hat{\sigma}_j$$ decrease? (Noise got smaller → variance-driven)
 - Which component shifted more?
 
-An even simpler version: compute the **median within-condition variance** across all features for each condition. If Condition A's median variance is 40% lower than Condition B's, you have a 40% compression of the denominator. That alone can explain a dramatic increase in significance counts, with no change in effects.
+An even simpler proxy version is to compute the **median within-condition variance** across all features for each condition. This is not the tested denominator itself. In NB and voom-style pipelines, the relevant denominator is a modeled coefficient standard error that also depends on mean level, normalization, design, and shrinkage. But if Condition A's raw variance is consistently much lower than Condition B's, that is a clue that the modeled denominator may also be smaller.
 
 $$
-\text{median}(\hat{\sigma}^2_A) \ll \text{median}(\hat{\sigma}^2_B) \implies \text{DE}_A \gg \text{DE}_B
+\operatorname{median}(\widehat{\text{SE}}(\hat{\beta})_A^2) \ll \operatorname{median}(\widehat{\text{SE}}(\hat{\beta})_B^2) \implies \text{DE}_A \gg \text{DE}_B
 $$
 
-regardless of effect sizes.
+can occur even when the effect-size distributions are similar.
 
-## Diagnostic 5: Significance count vs within-group variance
+## Diagnostic 5: Significance count vs noise proxy
 
-This is the operational proof.
+This is an operational check.
 
 Across multiple experiments (or across subsets of features within a single experiment), plot:
 
-- x-axis: mean within-group variance (averaged over features)
+- x-axis: a denominator-related noise proxy (for example, median coefficient SE$$^2$$, fitted residual variance, or another model-based summary averaged over features)
 - y-axis: number of significant features
 
-If significance is variance-driven, you will observe:
+In a fixed setting where effect distributions are similar and the main change is the noise level, you may observe:
 
 $$
 N_{\text{sig}} \propto \frac{1}{\bar{\sigma}^2}
 $$
 
-This is a direct consequence of the test statistic structure. When the denominator shrinks uniformly, the number of features whose test statistic exceeds the threshold increases — and the relationship is approximately inversely proportional.
+This follows the basic test statistic logic: when the denominator shrinks uniformly, more features can cross the significance threshold. In some controlled settings, that relationship can look approximately inversely proportional.
 
-Plot it. If the data falls on a hyperbola, your significance counts are controlled by the noise floor, not by the effects.
+Plot it. If the data falls on a hyperbola, that is consistent with significance counts being strongly influenced by the noise floor rather than only by the effects.
 
 ## Diagnostic 6: Threshold sensitivity
 
@@ -210,7 +210,7 @@ If significance is driven by large effects, moderate changes to FDR or effect si
 Putting it all together:
 
 | Diagnostic | Effect-driven | Variance-driven |
-|:-----------|:-------------|:----------------|
+| :----------- | :------------- | :---------------- |
 | $$\|\hat{\beta}\|$$ distribution | Shifts right for significant features | Static or barely shifts |
 | Mean-variance trend | Stable across conditions | Condition-specific shifts |
 | Volcano plot | Diagonal (coupled) | Vertical banding (decoupled) |
@@ -218,7 +218,7 @@ Putting it all together:
 | $$N_{\text{sig}}$$ vs variance | Flat / uncorrelated | Inversely proportional |
 | Threshold sensitivity | Low (robust) | High (fragile) |
 
-If three or more diagnostics point to variance-driven significance, the inference is clear: the significant feature count reflects the noise estimation procedure, not the strength of the underlying effects.
+If three or more diagnostics point to variance-driven significance, the practical inference is that the significant feature count is reflecting noise estimation and statistical sensitivity at least as much as the strength of the underlying effects.
 
 This does not mean the results are wrong. It means they need to be interpreted as "we detected small effects because our noise estimates were tight" rather than "we detected strong effects." These are fundamentally different claims with different downstream implications.
 
@@ -226,14 +226,14 @@ This does not mean the results are wrong. It means they need to be interpreted a
 
 To make this concrete, consider a simulated scenario.
 
-Generate $$p = 10{,}000$$ features under two conditions (this could be word counts across documents, species abundances across sites, defect categories across production runs — the math is identical):
+Generate $$p = 10{,}000$$ features in two separate experiments or contrasts, A and B (this could be word counts across documents, species abundances across sites, defect categories across production runs — the math is identical), with the same true effect-size distribution but different within-group noise levels:
 
 - **Condition A**: 5 replicates, within-group standard deviation = 0.8
 - **Condition B**: 5 replicates, within-group standard deviation = 0.4
 
-Both conditions share the **same true effect sizes**: 95% of features have $$\beta_j = 0$$ (null), 5% have $$\beta_j \sim N(0, 0.3^2)$$ (small true effects).
+Both experiments share the **same true effect sizes**: 95% of features have $$\beta_j = 0$$ (null), 5% have $$\beta_j \sim N(0, 0.3^2)$$ (small true effects).
 
-Run the same differential testing pipeline on both. Expected results:
+Run the same differential testing pipeline on both contrasts. Expected results:
 
 - Condition B produces roughly 2-4x more significant features than Condition A
 - The effect size distributions are identical (by construction)
@@ -241,17 +241,17 @@ Run the same differential testing pipeline on both. Expected results:
 - The volcano plot for B shows vertical banding; A shows a more diagonal structure
 - $$N_{\text{sig}}$$ vs $$\bar{\sigma}^2$$ falls on a hyperbola
 
-Every diagnostic confirms: the significance difference is entirely variance-driven. No real difference in effects. Just noise.
+Every diagnostic confirms that the significance difference is variance-driven in this simulated setup. The effect structure is unchanged by construction; only the noise level moved.
 
-This is not a pathological scenario. It is the default behavior of these methods when within-group variance differs across conditions.
+This is not a pathological scenario. It is a common pattern in these methods when within-group variance differs across conditions.
 
 ## The uncomfortable implication
 
 When someone reports "Condition A produced 2,000 significant features while Condition B produced 500," the instinctive interpretation is "Condition A has stronger or more widespread effects."
 
-These diagnostics may reveal the opposite: Condition A simply had tighter noise, and the effect structure is indistinguishable between conditions. The significance count is measuring the precision of the experiment, not the magnitude of the effects.
+These diagnostics may reveal the opposite: Condition A simply had tighter noise, and the effect structure is indistinguishable between conditions. In that case, the significance count is measuring the precision of the experiment as much as the magnitude of the effects.
 
-This matters because downstream decisions — which condition to pursue, which results to follow up on, how to rank experimental or design variants — are often based on significance counts. If those counts are variance-driven, the ranking is an artifact. The "better" condition is just the quieter one.
+This matters because downstream decisions — which condition to pursue, which results to follow up on, how to rank experimental or design variants — are often based on significance counts. If those counts are variance-driven, the ranking may mostly reflect which condition was quieter rather than which one had larger effects.
 
 > "The number of significant features is a measure of statistical sensitivity, not of effect magnitude."
 

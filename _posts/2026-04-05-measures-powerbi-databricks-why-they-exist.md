@@ -2,14 +2,14 @@
 title: "Measures in Power BI and Databricks: Why They Exist"
 date: 2026-04-05
 categories: [Data Engineering]
-tags: [power-bi, databricks, dax, semantic-layer, analytics, data-modeling]
+tags: [power-bi, databricks, dax, semantic-layer, analytics, data-modeling, data-engineering]
 ---
 
 Most people learn Power BI or Databricks by connecting to data and dragging fields into visuals. That works — until the numbers start looking wrong. A total that does not add up. A percentage that gives the same value in every row. A chart that shows revenue correctly at the monthly level but breaks at the daily level.
 
 The root cause is almost always the same: they are treating stored data as if it were the answer. Measures exist because the answer depends on context, and context changes every time the user interacts with a visual.
 
-### The core problem
+## The core problem
 
 Data is stored at the lowest useful grain. A sales table has one row per transaction. An events table has one row per click. An inventory table might have one row per product per day. That is fine for storage. It is useless for a chart.
 

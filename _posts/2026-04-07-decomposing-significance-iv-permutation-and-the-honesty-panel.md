@@ -12,7 +12,7 @@ math: true
 
 ## The ground truth test
 
-Parts I–III built the conceptual framework and a set of visual diagnostics. This final part introduces the most definitive test — permutation — and assembles everything into a single diagnostic panel that answers one question:
+Parts I–III built the conceptual framework and a set of visual diagnostics. This final part introduces one of the most direct checks — permutation — and assembles everything into a single diagnostic panel that answers one question:
 
 > "Should I trust these significance calls, and if so, why?"
 
@@ -35,16 +35,16 @@ If the labels (group A vs group B) carry real information about the features, th
 The permutation distribution of significant feature counts gives you the **null expectation**: how many features would be called significant if the labels were meaningless.
 
 | Observed vs permutation | Interpretation |
-|:------------------------|:---------------|
-| Observed $$\gg$$ permutation | Signal is real — labels carry information that permutation destroys |
+| :------------------------ | :--------------- |
+| Observed $$\gg$$ permutation | Strong evidence that the labels carry information beyond the null permutations |
 | Observed $$\approx$$ permutation | No detectable signal — observed results are consistent with noise |
 | Observed $$>$$ permutation, but modestly | Weak signal, likely inflated by variance artifacts |
 
 ### The critical insight
 
-Under a well-calibrated null, permutation should produce approximately $$p \times \alpha$$ significant features (where $$\alpha$$ is the nominal FDR level). With $$p$$ features at FDR 5%, you might expect approximately $$0.05p$$ significant features from permuted data, arising from the mechanics of multiple testing correction.
+Under a well-calibrated complete null, FDR-controlled pipelines often produce few or no discoveries on permuted data. The exact number depends on the testing procedure, dependence structure, and the shape of the p-value distribution under permutation, so the empirical permutation distribution itself is the benchmark.
 
-If permutation produces 500 or 1,000 significant features, something is systematically wrong. Common causes:
+If permutation repeatedly produces a substantial number of significant features, something is systematically wrong. Common causes:
 
 - **Shrinkage miscalibration**: the empirical Bayes prior is too aggressive, compressing variance estimates so far that even random label assignments produce inflated test statistics
 - **Structured noise**: the samples have batch effects, technical confounders, or correlation structure that the permutation does not respect. Permutation assumes exchangeability under the null, and if samples are not exchangeable (e.g., because of batch effects), permuted labels can be anti-correlated with the confounders, producing spurious significance
@@ -58,7 +58,7 @@ In designs with blocking factors, batches, or paired samples, simple permutation
 
 The fix is restricted permutation: permute labels only within blocks. If samples are paired (e.g., before/after within the same unit), permute the labels within each pair. If there are batches, permute within each batch. This respects the exchangeability structure that the null hypothesis actually implies.
 
-Getting this right matters. Unrestricted permutation in a blocked design inflates the permutation null, making your observed results look better than they are. Restricted permutation gives a calibrated null.
+Getting this right matters. Unrestricted permutation in a blocked design can inflate the permutation null, making your observed results look less extreme than they really are. Restricted permutation gives a calibrated null.
 
 ## Rank stability: do your top features survive perturbation?
 
@@ -122,13 +122,13 @@ Here is the single-page diagnostic panel that combines everything from this seri
 
 **Panel (A): Effect size distribution.** ECDF or histogram of $$|\hat{\beta}_j|$$ for all features (gray) and significant features (colored). If the colored curve barely shifts right, effects are small. Variance is driving significance.
 
-**Panel (B): Volcano plot.** $$-\log_{10}(p)$$ vs $$|\hat{\beta}_j|$$. Diagonal = effect-driven. Vertical band at small $$|\hat{\beta}|$$ = variance-driven. Look at the left edge: if the most significant features cluster near $$|\hat{\beta}| = 0$$, that is the smoking gun.
+**Panel (B): Volcano plot.** $$-\log_{10}(p)$$ vs $$|\hat{\beta}_j|$$. Diagonal = effect-driven. Vertical band at small $$|\hat{\beta}|$$ = variance-driven. Look at the left edge: if the most significant features cluster near $$|\hat{\beta}| = 0$$, that is a strong warning sign.
 
 **Panel (C): Mean-variance plot.** Separate trends per condition. If one trend sits below the other or has a different shape, variance structure differs between conditions. Overlay the fitted shrinkage trend (dashed line) to see how much the model compresses.
 
-**Panel (D): SNR decomposition.** Two density plots: the distribution of $$|\hat{\beta}_j|$$ and the distribution of $$\hat{\sigma}_j$$, comparing across conditions. Which one shifted? If $$\hat{\sigma}$$ shifted and $$|\hat{\beta}|$$ did not, the significance difference is variance-driven.
+**Panel (D): SNR decomposition.** Two density plots: the distribution of $$|\hat{\beta}_j|$$ and the distribution of $$\hat{\sigma}_j$$, comparing across conditions. Which one shifted? If the model-based noise term $$\hat{\sigma}$$ shifted and $$|\hat{\beta}|$$ did not, the significance difference is variance-driven.
 
-**Panel (E): Permutation null.** Histogram of $$N_{\text{sig}}$$ across permutations, with a vertical line at the observed value. If the observed value is far into the tail (say, $$> 99\%$$ of permutations), the signal is real. If it is in the body of the distribution, the signal is not distinguishable from label noise.
+**Panel (E): Permutation null.** Histogram of $$N_{\text{sig}}$$ across permutations, with a vertical line at the observed value. If the observed value is far into the tail (say, $$> 99\%$$ of permutations), the evidence is much stronger than the null permutation baseline. If it is in the body of the distribution, the signal is not distinguishable from label noise.
 
 **Panel (F): Rank stability.** Bar chart or box plot of top-k overlap across leave-one-out or downsampling perturbations. Overlap above 70% = stable. Overlap below 50% = fragile.
 
@@ -137,7 +137,7 @@ Here is the single-page diagnostic panel that combines everything from this seri
 After generating the panel, classify the result:
 
 | Panel A | Panel B | Panel C | Panel E | Panel F | Verdict |
-|:--------|:--------|:--------|:--------|:--------|:--------|
+| :-------- | :-------- | :-------- | :-------- | :-------- | :-------- |
 | Shifted | Diagonal | Stable | Far tail | High overlap | **Effect-driven** — trust the results |
 | Static | Vertical | Shifted | Moderate | Low overlap | **Variance-driven** — decompose before interpreting |
 | Mixed | Mixed | Mixed | Tail | Moderate | **Mixed** — report effect size estimates, not just counts |

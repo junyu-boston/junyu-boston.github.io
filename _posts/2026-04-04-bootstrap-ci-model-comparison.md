@@ -2,7 +2,7 @@
 title: "Bootstrap CI for Model Comparison: A Practical Guide"
 date: 2026-04-04
 categories: [Statistics]
-tags: [bootstrap, confidence-intervals, model-comparison, computational-biology, python]
+tags: [bootstrap, confidence-intervals, model-comparison, model-evaluation, computational-biology, python]
 math: true
 ---
 
@@ -12,7 +12,7 @@ In model comparison reports, you often see statements like "Bootstrap 95% CI on 
 
 ## The core idea in one sentence
 
-When comparing two models, we estimate the performance difference many times by resampling the data. If the 95% confidence interval for that difference does not cross zero, we have evidence that the difference is real — not just random noise.
+When comparing two models, we estimate the performance difference many times by resampling the data. If the 95% confidence interval for that difference does not cross zero, we have evidence for a non-zero average difference in the chosen evaluation units.
 
 ## Step 1: Define what you compare
 
@@ -32,6 +32,8 @@ In biology-facing ML work, we often have a modest number of evaluation units (sa
 - Works well with **small-to-moderate sample sizes**
 - Directly estimates **uncertainty of the observed mean difference**
 
+It is still not assumption-free. The resampled units need to match the inferential units of the claim, and with very small samples or bounded metrics, a percentile bootstrap interval should be read as an approximation rather than a guarantee.
+
 ## Step 3: The bootstrap procedure (paired)
 
 Given *N* paired deltas (one per evaluation unit):
@@ -49,13 +51,13 @@ Let CI = [lower, upper].
 
 | Condition | Interpretation |
 | --------- | -------------- |
-| lower > 0 **and** upper > 0 | Model A is significantly better |
-| lower < 0 **and** upper < 0 | Model B is significantly better |
+| lower > 0 **and** upper > 0 | Evidence favors Model A on the sampled evaluation units |
+| lower < 0 **and** upper < 0 | Evidence favors Model B on the sampled evaluation units |
 | lower ≤ 0 ≤ upper | No clear winner at 95% confidence |
 
 **Example:** CI = [+0.004, +0.088]
 
-Both bounds are positive, so zero is not inside the interval. This supports a real positive advantage for Model A on the chosen metric.
+Both bounds are positive, so zero is not inside the interval. This supports a positive average advantage for Model A on the chosen metric for the resampled units.
 
 ## Intuition
 
@@ -63,7 +65,7 @@ Think of bootstrap as asking:
 
 > "If I reran this study many times with similar data variability, what range of average model differences would I usually see?"
 
-If that range is entirely above zero, "no difference" is not consistent with the data.
+If that range is entirely above zero, a zero average difference is not well-supported by the data under this resampling scheme.
 
 ## Practical verification checklist
 
@@ -71,17 +73,20 @@ Before claiming significance, verify all of these:
 
 1. **Pairing is correct** — Compare A and B on identical evaluation units (same genes/folds/samples)
 2. **Delta sign is documented** — Clearly state δ = A − B (not B − A)
-3. **Resampling is paired** — Resample units (genes) and keep each pair together
-4. **Enough bootstrap iterations** — At least 5,000; 10,000 is common
-5. **CI percentile method is stated** — Usually percentile CI: [2.5th, 97.5th]
-6. **CI reported with signs** — Example: [+0.004, +0.088], not [0.004, 0.088]
-7. **Biological relevance is discussed** — Statistical significance does not automatically mean practical utility
+3. **Inferential unit is defensible** — Resample the units you want to generalize over; do not treat dependent measurements as independent units
+4. **Resampling is paired** — Resample units (genes) and keep each pair together
+5. **Enough bootstrap iterations** — At least 5,000; 10,000 is common
+6. **CI method is stated** — Usually percentile CI: [2.5th, 97.5th]
+7. **CI reported with signs** — Example: [+0.004, +0.088], not [0.004, 0.088]
+8. **Biological relevance is discussed** — Statistical detectability does not automatically mean practical utility
 
 ## Common mistakes
 
 - **Mixing unpaired and paired analysis** — if models are evaluated on the same units, the analysis must be paired
+- **Bootstrapping the wrong inferential unit** — e.g., resampling genes when the real dependence structure lives at the sample or fold level
 - **Changing metric direction** (higher-is-better vs lower-is-better) without adjusting delta sign
 - **Bootstrapping at the wrong level** — e.g., resampling individual siRNAs when the claim is gene-level generalization
+- **Treating percentile bootstrap as self-validating** — with small samples or skewed metrics, a paired permutation or sign-flip check can be a useful complement
 - **Reporting only p-values** without effect size and CI
 
 ## Minimal Python example
@@ -116,7 +121,7 @@ print(f"95% bootstrap CI: [{ci_low:+.4f}, {ci_high:+.4f}]")
 print("Excludes zero?", not (ci_low <= 0 <= ci_high))
 ```
 
-Running this produces a CI entirely above zero, confirming a statistically supported advantage for Model A.
+Running this produces a CI entirely above zero, supporting a positive average advantage for Model A in this toy example.
 
 ## Reporting template
 
@@ -128,4 +133,4 @@ Optional add-on: "Observed mean δ = *X* (*Y*% relative improvement)."
 
 ## Final takeaway
 
-"Bootstrap CI excludes zero" is a rigorous way to say the model advantage is unlikely to be due to random sampling variation — especially valuable in small-to-moderate biological evaluation sets where strict parametric assumptions may be fragile.
+"Bootstrap CI excludes zero" is a disciplined way to say the observed average difference is consistently on one side of zero under the chosen resampling scheme. That is useful evidence, but it still needs the right inferential unit, a sensible CI method, and a discussion of practical effect size.

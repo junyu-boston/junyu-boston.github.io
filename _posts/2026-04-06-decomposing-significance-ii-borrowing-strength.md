@@ -38,7 +38,7 @@ where $$w_j \in [0, 1]$$ controls how much the feature retains its own estimate 
 
 Features with very few counts (and therefore very noisy dispersion estimates) are pulled strongly toward the trend ($$w_j$$ close to 0). Features with high counts and more reliable estimates retain more of their own information ($$w_j$$ closer to 1).
 
-This is James-Stein shrinkage applied to variance estimation. The same principle that Stein demonstrated for means in 1956 — that shrinking toward a common value improves aggregate estimation error — applies to variances.
+This is Stein-type shrinkage intuition applied to variance estimation. The same principle that shrinking toward a common value can improve aggregate estimation error also motivates variance moderation here.
 
 ## What the shrinkage weight depends on
 
@@ -50,7 +50,7 @@ The weight $$w_j$$ is determined by two quantities:
 Formally, in a parametric empirical Bayes framework:
 
 $$
-w_j = \frac{\text{prior precision}}{\text{prior precision} + \text{data precision}_j}
+w_j = \frac{\text{data precision}_j}{\text{prior precision} + \text{data precision}_j}
 $$
 
 With 3-5 replicates, the data precision is low for every feature, so shrinkage is heavy everywhere. With 20+ replicates, the data precision is high, and each feature retains most of its own estimate.
@@ -73,13 +73,13 @@ $$
 \tilde{Y}_{ij} = \log_2(Y_{ij} + 0.5)
 $$
 
-(or a more sophisticated transformation), then model the mean-variance trend of the log-transformed data and compute observation-level weights:
+(or a more sophisticated transformation), then model the mean-variance trend of the log-transformed data and compute observation-level weights from the fitted abundance level for each observation:
 
 $$
-w_{ij} = \frac{1}{\hat{f}(\bar{Y}_j)}
+w_{ij} = \frac{1}{\hat{f}(\hat{\mu}_{ij})}
 $$
 
-where $$\hat{f}$$ is the fitted mean-variance function. Observations from high-variance features get downweighted; observations from low-variance features get upweighted.
+where $$\hat{f}$$ is the fitted mean-variance function and $$\hat{\mu}_{ij}$$ is the fitted abundance level used to assign the precision weight. Observations in higher-variance regions of the mean-variance trend get downweighted; observations in lower-variance regions get upweighted.
 
 The linear model is then:
 
