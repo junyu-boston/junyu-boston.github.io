@@ -8,6 +8,8 @@ math: true
 
 ## The metric can look strong while the model is operationally weak
 
+*This article is the operational companion to [Classification Is Distribution Discrimination](/posts/classification-is-distribution-discrimination-roc-mcc-and-the-regression-bridge/). That piece explains the deeper statistical picture behind ROC-AUC, MCC, Precision@K, and score distributions. This one stays focused on the practical question: what changes when positives are rare?*
+
 Suppose you are building a classifier for a rare event: a fraudulent transaction, a readmission risk, or a screening hit in a large assay where only a small fraction of candidates are truly positive.
 
 The first metric many teams report is AUC-ROC. If it is 0.92, the model sounds excellent. But under heavy class imbalance, that number can hide the question the user actually cares about:
@@ -236,5 +238,7 @@ ROC asks whether positives outrank negatives.
 PR asks whether predicted positives are worth believing.
 
 When positives are rare, that second question is often closer to the real operating problem. But if the workflow acts on a fixed review budget or only the top-ranked cases, pair PR-style summaries with the thresholded or top-k metric the workflow actually uses.
+
+If you want the deeper unifying view — why ROC-AUC is really a distribution-separation statistic, how MCC fits into the same family, and why Precision@K becomes a right-tail problem — read [Classification Is Distribution Discrimination](/posts/classification-is-distribution-discrimination-roc-mcc-and-the-regression-bridge/).
 
 References: [Davis and Goadrich, 2006](https://dl.acm.org/doi/10.1145/1143844.1143874); [Saito and Rehmsmeier, 2015](https://doi.org/10.1371/journal.pone.0118432).
