@@ -232,6 +232,14 @@ So at the Bayes-optimal solution, the score function is the log density ratio pl
 
 This is the circle closing. You train a regressor. It learns to separate two distributions. You evaluate it with metrics that quantify separation. You deploy by thresholding. "Classification" is just the user-facing wrapper around distribution discrimination.
 
+### What the PR-style counterpart looks like in regression
+
+There is no single canonical regression analogue of PR-AUC or Precision@K, because regression has no intrinsic positive class and therefore no native decomposition into $TP$, $FP$, and predicted-positive purity. But if the operational goal is upper-tail discovery, the analogue appears naturally once you reinterpret the problem as ranking over the response variable. Let $\hat{y}(x)$ be the model score and $Y$ the continuous target. Then the tail-focused question is not "how small is $(Y-\hat{y})^2$ on average?" but rather "among the points with largest $\hat{y}$, how much of the high-response region have we captured?"
+
+That produces two related families of metrics. One family is global ranking quality: Spearman's $\rho$, Kendall's $\tau$, and the concordance index ask whether larger predicted scores tend to align with larger realized outcomes across the full range. The other family is tail-focused capture: top-$K$ mean observed response, lift or cumulative gain, or, when the outcome is nonnegative and additive, the fraction of total outcome captured above a score threshold. Those are closer in spirit to Precision@K because they care about what happens in the extreme right tail rather than average ordering everywhere.
+
+If you want the closest PR-style construction, define a tail event $Z_u = \mathbf{1}[Y > u]$ for some high quantile threshold $u$, and then evaluate PR-AUC or Precision@K on $(\hat{y}(x), Z_u)$. In other words, PR-style metrics do not disappear in regression; they re-emerge when a continuous response is converted into a rare upper-tail event. The underlying split is the same as in classification: global metrics like RMSE evaluate fidelity across the full outcome distribution, while tail-focused ranking or capture metrics evaluate how well the model concentrates high-response cases into the right tail of the score distribution.
+
 ### Why this reframing clarifies model improvement
 
 When a model has high AUC but poor Precision@K, the distributions are globally separated but their right tails still overlap. The fix is not "classification tricks" — it is improving the score function in the high-scoring region. That is a regression problem: make $f(x)$ larger for true positives and smaller for true negatives, specifically in the region where the model is most confident.
