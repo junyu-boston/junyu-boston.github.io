@@ -1,18 +1,25 @@
 ---
-title: "Gene Constraint, Observed vs Expected: What pLI, LOEUF, and Missense Z Actually Measure"
+title: "How to Read gnomAD Constraint Metrics: pLI, LOEUF, and Missense Z"
 date: 2026-04-23
 categories: [Computational Biology, Statistics]
 tags: [gnomad, genetics, gene-constraint, pli, loeuf, missense-z, graphql, python, statistics]
-description: "A statistical tour of gnomAD's constraint metrics — what pLI, LOEUF, and missense Z really mean, why they are observed-versus-expected tests under a mutation model, and how to pull them live from the gnomAD GraphQL API."
+description: "A practical guide to reading gnomAD constraint metrics: what pLI, LOEUF, and missense Z mean, why they can disagree, and how to query them live from the GraphQL API."
+excerpt: "A practical guide to gnomAD constraint metrics for variant interpretation and target evaluation, with a live GraphQL example and a reproducible SCN1A walkthrough."
 ---
 
-*pLI = 1.0 and missense Z = 1.33 in the same gene is not a contradiction. It is the correct behavior of two different statistical tests that care about two different classes of variation. Understanding why they disagree is the difference between reading a number and understanding a gene.*
+*A gene can be highly intolerant to truncating variants while looking only mildly constrained for amino-acid substitutions. That is not inconsistency. It is what correctly interpreted population genetics looks like.*
 
-A common pattern on any gene report: pLI sits at 1.0 ("extremely loss-of-function intolerant"), while the missense Z-score hovers around 1.3 ("nothing remarkable"). Pasted into a slide, the two numbers look inconsistent. They are not. pLI answers a question about the tail of the loss-of-function distribution. Missense Z asks an average goodness-of-fit question across the coding sequence. The same gene can be extreme under one test and unremarkable under the other, and often is.
+A common pattern on a gene report: pLI sits at 1.0 ("extremely loss-of-function intolerant"), while the missense Z-score hovers around 1.3 ("nothing remarkable"). Pasted into a slide, the two numbers look inconsistent. They are not. If you work in variant interpretation, disease genetics, or target evaluation, that distinction matters because these metrics answer different biological questions.
 
-To read these numbers correctly, it helps to step back from the gene pages and look at what gnomAD is actually computing. Every gene-constraint metric — pLI, LOEUF, oe_lof, oe_mis, missense Z, synonymous Z — is a variation on the same structural idea: *observed vs expected under a sequence-aware mutation model*. The metrics differ in which variants they count, how they compute the expectation, and how they summarize the observed/expected ratio. Once that structure is clear, the metrics stop looking like a bag of scores and start looking like a coherent toolkit.
+To read these numbers correctly, it helps to step back from the gene page and look at what gnomAD is actually computing. Every gene-constraint metric — pLI, LOEUF, oe_lof, oe_mis, missense Z, synonymous Z — is a version of the same core idea: *observed versus expected under a sequence-aware mutation model*. The metrics differ in which variants they count, how they compute expectation, and how they summarize deviation from expectation. Once that structure is clear, the scores stop looking like disconnected labels and start reading like a coherent decision toolkit.
 
 This post builds up that toolkit from first principles and then shows how to pull the values live for any human gene using the gnomAD GraphQL API.
+
+## If you only remember three things
+
+- **Start with LOEUF for loss-of-function constraint.** Lower LOEUF means stronger depletion of LoF variants relative to neutral expectation.
+- **Read missense Z independently.** A gene can be extremely LoF-constrained and only mildly missense-constrained, or the reverse.
+- **Always look at the counts behind the score.** `obs` and `exp` tell you how much mutational opportunity sits behind the summary number.
 
 ## The mutation rate model
 
@@ -50,7 +57,7 @@ Why the upper bound? Because the quantity we care about is "how strongly is this
 
 This makes LOEUF a *continuous severity score with built-in statistical confidence*. Lower is more constrained. The gnomAD team recommends using the lowest decile (LOEUF < 0.35 roughly) to flag haploinsufficient candidates, but there is no hard cutoff — it is a continuous ranking.
 
-LOEUF has increasingly replaced pLI as the preferred LoF-intolerance metric. It degrades gracefully on small genes, it is continuous rather than binary-leaning, and it has an obvious statistical interpretation ("95% certain the true oe ratio is no higher than X").
+LOEUF has increasingly replaced pLI as the preferred LoF-intolerance metric. It degrades gracefully on small genes, it is continuous rather than binary-leaning, and it has an obvious statistical interpretation as a conservative upper confidence bound on the oe ratio.
 
 ## pLI: the mixture-model ancestor
 
@@ -119,19 +126,23 @@ The minimal query for constraint metrics is:
     gnomad_constraint {
       pLI
       mis_z
+      syn_z
       lof_z
       oe_mis
       oe_mis_lower
       oe_mis_upper
+      oe_syn
+      oe_syn_lower
+      oe_syn_upper
       oe_lof
       oe_lof_lower
       oe_lof_upper
       obs_mis
       exp_mis
-      obs_lof
-      exp_lof
       obs_syn
       exp_syn
+      obs_lof
+      exp_lof
     }
   }
 }
@@ -154,13 +165,18 @@ query GeneConstraint($symbol: String!, $ref: ReferenceGenomeId!) {
     gnomad_constraint {
       pLI
       mis_z
+      syn_z
       lof_z
       oe_mis
       oe_mis_upper
+      oe_syn
+      oe_syn_upper
       oe_lof
       oe_lof_upper
       obs_mis
       exp_mis
+      obs_syn
+      exp_syn
       obs_lof
       exp_lof
     }
@@ -188,6 +204,7 @@ if __name__ == "__main__":
             f"{gene:7s}  pLI={c['pLI']:.3f}  "
             f"LOEUF={c['oe_lof_upper']:.3f}  "
             f"Z_mis={c['mis_z']:.2f}  "
+            f"Z_syn={c['syn_z']:.2f}  "
             f"oe_lof={c['oe_lof']:.3f}  "
             f"oe_mis={c['oe_mis']:.3f}"
         )
@@ -197,23 +214,24 @@ Running this produces a one-line constraint summary for each gene. No API key is
 
 ## Reading a constraint row
 
-Take a single gene and look at the full row. For SCN1A (a well-known haploinsufficient gene in Dravet syndrome), typical gnomAD v4 values look roughly like this:
+Take a single gene and look at the full row. For SCN1A (a well-known haploinsufficient gene in Dravet syndrome), a live GRCh38 query to the gnomAD API on 2026-04-23 returned the following values. Treat them as a reproducible illustration rather than a forever-stable snapshot, since browser releases can update the exact counts.
 
-- pLI ≈ 1.00
-- LOEUF (oe_lof_upper) ≈ 0.07
-- Z_mis ≈ 5.5
-- oe_lof ≈ 0.03
-- oe_mis ≈ 0.68
-- obs_lof = 2, exp_lof ≈ 68
-- obs_mis ≈ 800, exp_mis ≈ 1170
+- pLI = 1.00
+- LOEUF (oe_lof_upper) ≈ 0.107
+- Z_mis ≈ 8.78
+- oe_lof ≈ 0.067
+- oe_mis ≈ 0.584
+- obs_lof = 13, exp_lof ≈ 193.74
+- obs_mis = 1432, exp_mis ≈ 2451.13
+- Z_syn ≈ 1.29
 
 What this tells you, as a sequence of nested statements:
 
-**The LoF story.** Expected LoF is 68 in a cohort this size under the neutral mutation model. Only 2 were observed. The point estimate oe_lof = 2/68 ≈ 0.03 says 97% of expected LoFs have been removed by selection. The 90% CI upper bound LOEUF = 0.07 says even the loosest plausible interpretation of the depletion still places the gene in the top decile of LoF constraint. pLI = 1.00 says the mixture model is maximally confident this gene belongs to the haploinsufficient class.
+**The LoF story.** Expected LoF is about 193.74 in a cohort this size under the neutral mutation model. Only 13 were observed. The point estimate oe_lof ≈ 13 / 193.74 ≈ 0.067 says about 93% of expected LoFs have been removed by selection. The upper bound LOEUF ≈ 0.107 says that even a conservative interpretation still places the gene among strongly LoF-constrained genes. pLI = 1.00 says the mixture model is maximally confident this gene belongs to the haploinsufficient class.
 
-**The missense story.** Expected missense is ~1170 in a cohort this size. Observed is ~800. The point estimate oe_mis ≈ 0.68 says about 32% of expected missense variants are missing. Z_mis ≈ 5.5 says this 32% depletion is 5.5 standard deviations below the global mean across genes — genuinely extreme. This gene is missense-constrained too, not just LoF-constrained, and both axes agree.
+**The missense story.** Expected missense is about 2451.13 in a cohort this size. Observed is 1432. The point estimate oe_mis ≈ 0.584 says about 42% of expected missense variants are missing. Z_mis ≈ 8.78 says this depletion sits far below the global mean across genes and is genuinely extreme. This gene is missense-constrained too, not just LoF-constrained, and both axes agree.
 
-**What the numbers do not say.** They do not tell you *which* missense positions are constrained. A gene can have an overall Z_mis of 5 while having exons that tolerate missense freely and domains that tolerate none. Regional constraint scores (gnomAD also publishes these) start answering that. They also do not tell you mechanism — whether depletion is from haploinsufficiency, dominant-negative action, loss of essential binding surface, or developmental lethality. Constraint reports the fingerprint of selection, not its cause.
+**What the numbers do not say.** They do not tell you *which* missense positions are constrained. A gene can have an overall Z_mis of 8.78 while having exons that tolerate missense freely and domains that tolerate none. Regional constraint scores (gnomAD also publishes these) start answering that. They also do not tell you mechanism — whether depletion is from haploinsufficiency, dominant-negative action, loss of essential binding surface, or developmental lethality. Constraint reports the fingerprint of selection, not its cause.
 
 Now contrast that with a hypothetical pLI = 1.00, Z_mis = 1.33 gene. You would read that as: LoF is strongly selected against (losing a copy matters) but missense is only mildly depleted (residue-level changes are largely tolerated). Mechanistically, this is the signature of a haploinsufficient gene that is not also under strong dominant-negative missense selection. Many transcription factors and dosage-sensitive structural proteins sit here. The pLI and Z numbers are not fighting — they are describing two different slices of the same gene's tolerance profile.
 
