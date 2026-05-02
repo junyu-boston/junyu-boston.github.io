@@ -138,27 +138,99 @@ A small displacement inside a very tight distribution is more informative than t
 
 ## Differential expression is a one-dimensional Mahalanobis distance
 
-For a single gene, the basic differential-expression statistic looks like
+The DE statistic and the Mahalanobis distance are two views of the same object: variance-normalized distance from a reference point. Making the connection explicit takes a few steps, because at first glance the two formulas do not look alike.
+
+### What Mahalanobis distance actually measures
+
+Euclidean distance treats every direction the same. If two variables have very different scales, or are strongly correlated, Euclidean distance gives misleading answers. A point two units away along a tight direction is far more surprising than a point two units away along a loose one.
+
+Mahalanobis distance fixes this. For a point 𝐱 and a distribution with mean μ and covariance matrix Σ:
 
 $$
-\frac{(\Delta \mu_g)^2}{\sigma_g^2}
+D_M^2(𝐱) = (𝐱 - μ)^\top\, Σ^{-1}\, (𝐱 - μ)
 $$
 
-In multivariate statistics, the canonical variance-normalized distance is the Mahalanobis distance:
+The role of Σ⁻¹ is to rescale each direction by its own variance and account for correlation between components. The result is a **unitless squared-distance in standard-deviation units**.
+
+Geometrically, Σ defines an ellipsoid of "typical" points around μ. The Mahalanobis distance asks how many ellipsoid-radii the point 𝐱 lies from μ. A value of 1 sits on the one-σ contour; a value of 9 is roughly three σ out.
+
+This is why Mahalanobis distance is the natural object for statistical tests. A test statistic should quantify how surprising an observation is *under some null reference distribution*, and surprise is only meaningful in units of that distribution's own spread.
+
+### The one-dimensional case
+
+When 𝐱 and μ are scalars and Σ collapses to σ², the formula reduces to:
 
 $$
-(x - \mu)^\top \Sigma^{-1} (x - \mu)
+D_M^2(x) = \frac{(x - μ)^2}{σ^2}
 $$
 
-Gene-wise differential expression is the one-dimensional version.
+This is a squared z-score. Z-scores and Mahalanobis distance are not analogues — the z-score is literally the one-dimensional Mahalanobis distance.
 
-That observation makes several things line up:
+### Mapping differential expression onto the Mahalanobis form
 
-- PCA describes where variance lives
-- Mahalanobis distance describes surprise relative to covariance structure
-- differential expression asks whether the observed mean shift is surprising given the variance
+Now the bridge to DE. For a single gene, the DE statistic looks like:
 
-In gene-wise DE, we usually ignore gene-gene covariance and work one feature at a time. But the conceptual bridge is real: a DE statistic is a variance-aware distance from a restricted model.
+$$
+\frac{(Δμ_g)^2}{σ_g^2}
+$$
+
+where Δμ_g = x̄_treat − x̄_ctrl is the observed mean shift.
+
+To see this as a Mahalanobis distance, identify what plays each role:
+
+| Generic Mahalanobis | DE analogue |
+| --- | --- |
+| 𝐱 — observed point | Δμ_g — observed mean shift |
+| μ — reference center | 0 — the null value (no shift) |
+| Σ — covariance of the observed quantity | Var(Δμ_g) — sampling variance of the shift |
+
+Substituting those roles:
+
+$$
+D_M^2(Δμ_g) = \frac{(Δμ_g - 0)^2}{\mathrm{Var}(Δμ_g)} = \frac{(Δμ_g)^2}{\mathrm{Var}(Δμ_g)}
+$$
+
+The subtle point — and the reason the mapping is not obvious — is that the "observation" being measured is not a single expression value. It is an **estimated statistic**, Δμ_g. And the "covariance" is not the gene's expression variance σ_g² directly, but the variance of that statistic.
+
+### Why the denominator is Var(Δμ_g), not σ_g²
+
+For independent control and treatment samples of sizes n_ctrl and n_treat, and a shared gene-level variance σ_g²:
+
+$$
+\mathrm{Var}(Δμ_g) = σ_g^2 \cdot \left( \frac{1}{n_\mathrm{ctrl}} + \frac{1}{n_\mathrm{treat}} \right)
+$$
+
+So the fully-written DE statistic is:
+
+$$
+\frac{(Δμ_g)^2}{σ_g^2 \cdot (1/n_\mathrm{ctrl} + 1/n_\mathrm{treat})}
+$$
+
+The informal version shown earlier, (Δμ_g)² / σ_g², drops the sample-size factor for clarity, but the full story is that **the relevant spread is the spread of the statistic, not the spread of the raw data**. This distinction matters: more samples make Var(Δμ_g) smaller even when σ_g² is fixed, which is how sample size buys statistical power without changing the underlying biology.
+
+### The Wald statistic is the general pattern
+
+This same recipe — take an estimate, subtract its null value, square it, divide by its sampling variance — is the **Wald statistic**:
+
+$$
+W = \frac{(\hat{θ} - θ_0)^2}{\mathrm{Var}(\hat{θ})}
+$$
+
+The DE statistic is the Wald statistic for θ = Δμ_g with null value θ₀ = 0. The t-statistic is the signed square root of W, with σ_g² replaced by its sample estimate. The z-score is the same object when σ is known. All of these — Mahalanobis, Wald, t, z — are one geometric idea: **variance-normalized distance of an estimate from a reference point**.
+
+In the multivariate case — testing several contrasts jointly, or reasoning about a whole gene set — the full (𝐱 − μ)ᵀ Σ⁻¹ (𝐱 − μ) form returns, and Σ captures both per-feature variance and cross-feature covariance. Gene-wise DE just happens to work one coordinate at a time, which is why the formula reduces to a scalar.
+
+### Why this perspective matters
+
+Once DE is framed as a Mahalanobis distance on an estimated quantity, several ideas that are usually taught separately line up into one system:
+
+- **PCA** describes the principal axes of Σ — where variance lives in the data
+- **Mahalanobis distance** describes surprise relative to that covariance structure
+- **DE** asks whether a mean shift is surprising given the variance of that shift
+- **Shrinkage** stabilizes the denominator so the distance does not explode when Σ (or σ²) is poorly estimated
+- **Hypothesis testing in general** is the act of computing a Mahalanobis-like distance from a null point and asking whether that distance is larger than would be expected by chance
+
+A DE statistic is a variance-aware distance from a restricted model. That is not a metaphor — it is the literal structure of the computation.
 
 ## Why shrinkage belongs in the story
 
