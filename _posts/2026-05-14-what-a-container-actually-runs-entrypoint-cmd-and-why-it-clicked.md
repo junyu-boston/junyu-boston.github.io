@@ -1,18 +1,18 @@
 ---
 layout: post
-title: "What a Container Actually Runs: ENTRYPOINT, CMD, and the Pitfalls That Bite in Production"
+title: "What a Container Actually Runs: ENTRYPOINT, CMD, and the Process Lifecycle"
 date: 2026-05-14
 categories: [Software Engineering, Computational Biology]
 tags: [docker, containers, entrypoint, cmd, kubernetes, bioinformatics, workflow-systems]
-description: "A working mental model of Docker containers for computational biology: what ENTRYPOINT and CMD actually do, how the model maps to Kubernetes Jobs and Deployments, and the production pitfalls (PID 1, shell vs exec form, non-root) that the mini-VM analogy hides."
+description: "A working mental model of Docker containers for computational biology: what ENTRYPOINT and CMD actually do, why the lifecycle of the main process is the lifecycle of the container, and how that maps cleanly onto Kubernetes Jobs and Deployments."
 excerpt: "A container is not a tiny virtual machine. It is a packaged environment that starts one process — and the lifecycle of that process is the lifecycle of the container."
 ---
 
 A container is not a tiny virtual machine. It is a packaged environment that starts one process, and the lifecycle of that process is the lifecycle of the container.
 
-That single shift makes the rest of Docker tractable. `ENTRYPOINT` and `CMD` become the two knobs that define the process. Kubernetes `Deployment` and `Job` become the two natural shapes of containerized work. And the production failure modes — zombies, orphaned signals, dropped writes on shutdown, root-owned files in mounted volumes — stop looking like Docker quirks and start looking like predictable consequences of a simple model.
+That single shift makes the rest of Docker tractable. `ENTRYPOINT` and `CMD` become the two knobs that define the process. Kubernetes `Deployment` and `Job` become the two natural shapes of containerized work — long-lived services and run-to-completion batch jobs.
 
-This post is the model I actually use, plus the three places it bites in production.
+This post is the working model: image vs container, the role of `ENTRYPOINT` and `CMD`, the two process lifecycles, and how all of that maps cleanly onto Kubernetes. For the orchestration model above the container, see [the Kubernetes Deployment, Job, and Service piece]({% post_url 2026-05-13-kubernetes-deployment-job-service-mental-model %}).
 
 > **Key takeaways**
 >
@@ -20,7 +20,6 @@ This post is the model I actually use, plus the three places it bites in product
 > - `ENTRYPOINT` and `CMD` define what process starts inside the container.
 > - The container's lifetime equals that process's lifetime: services keep running, batch jobs exit.
 > - This maps directly to Kubernetes `Deployment` (long-lived) and `Job` (run-to-completion).
-> - The production pitfalls — PID 1 signal handling, shell vs exec form, non-root users — all stem from the same model.
 
 ---
 
@@ -58,7 +57,7 @@ Docker is asking one question: *what command should start inside this container?
 
   <div style="border: 1px solid #cbd5e1; border-radius: 18px; padding: 1rem 1.25rem; background: linear-gradient(135deg, #ffffff, #f8fafc); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);">
     <div style="display: inline-block; padding: 0.35rem 0.7rem; border-radius: 999px; background: #dcfce7; color: #166534; font-weight: 700; font-size: 0.95rem;">2. Container start</div>
-    <div style="margin-top: 0.8rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;">One main process launches as PID 1</div>
+    <div style="margin-top: 0.8rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;">One main process launches</div>
     <div style="margin-top: 0.7rem; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #0f172a;">docker run qc-image --input sample.fastq</div>
     <div style="margin-top: 0.55rem; color: #475569;">Docker combines image defaults with runtime arguments and starts the program inside the container.</div>
   </div>
@@ -194,91 +193,10 @@ Read inputs, do the work, write outputs, exit. Same image, same contract, two ex
 
 ---
 
-## Where the Model Bites in Production
-
-The mini-VM analogy hides three failure modes. Each comes from the same fact: **the container's main process is PID 1**, and PID 1 is special on Linux.
-
-### 1. PID 1, signal handling, and zombie processes
-
-PID 1 has two responsibilities most programs don't expect: it must reap orphaned child processes, and it does **not** receive default signal handlers. If your `ENTRYPOINT` is a Python script that spawns subprocesses, those subprocesses' exits become zombies because Python doesn't reap them. And when Kubernetes wants to stop the pod, it sends `SIGTERM` to PID 1 — if your process didn't install a handler, the signal is **ignored**, and the kubelet eventually escalates to `SIGKILL` after `terminationGracePeriodSeconds` (default 30s). That's how you get dropped writes, half-uploaded files, and corrupted partial outputs.
-
-Two fixes, in order of preference:
-
-```dockerfile
-# Option A: tell Docker/Kubernetes to use a minimal init.
-# Docker:     docker run --init my-image
-# Kubernetes: not built-in; use Option B or a sidecar init.
-
-# Option B: bake an init into the image.
-RUN apt-get update && apt-get install -y --no-install-recommends tini
-ENTRYPOINT ["/usr/bin/tini", "--", "python", "run_analysis.py"]
-```
-
-`tini` runs as PID 1, reaps zombies, and forwards `SIGTERM` to your actual program. For long-running services and any batch job that spawns subprocesses, this is the boring default.
-
-### 2. Shell form vs exec form
-
-These two lines look almost identical and behave very differently:
-
-```dockerfile
-ENTRYPOINT python run_analysis.py             # shell form
-ENTRYPOINT ["python", "run_analysis.py"]      # exec form
-```
-
-Shell form runs your command via `/bin/sh -c`, so `sh` becomes PID 1 and your Python process becomes its child. `SIGTERM` from Kubernetes goes to `sh`, which does not forward it. Your program never gets the chance to flush, close handles, or finish writing the current row. You'll see this in production as "graceful shutdown didn't work" — it didn't work because the signal never arrived.
-
-Default to exec form. Use shell form only when you genuinely need shell features (variable expansion, pipes), and pair it with an init.
-
-### 3. Root user, multi-stage, and the volume that bites back
-
-By default, containers run as `root`. Two consequences:
-
-- Files written to a mounted host volume are owned by root, which is hostile to shared cluster filesystems and makes downstream "read this output" steps fail with permission errors.
-- Any compromise of the process is a compromise of root inside the container, and depending on your runtime configuration, occasionally outside it.
-
-The fix is a non-root user, and multi-stage builds make it cheap because you can keep the final stage minimal:
-
-```dockerfile
-# Stage 1: build dependencies into a fat image.
-FROM python:3.11 AS builder
-WORKDIR /build
-COPY requirements.txt .
-RUN pip install --prefix=/install -r requirements.txt
-
-# Stage 2: ship only what runs.
-FROM python:3.11-slim
-RUN groupadd --system app && useradd --system --gid app --home /app app
-COPY --from=builder /install /usr/local
-WORKDIR /app
-COPY --chown=app:app qc.py .
-USER app
-ENTRYPOINT ["python", "qc.py"]
-```
-
-Three things changed:
-
-- The runtime image has no compiler toolchain, no build dependencies, no pip cache. Smaller surface area, smaller image, faster pulls.
-- A dedicated `app` user owns `/app` and runs the process. Output files land with sane ownership.
-- `COPY --chown` avoids a follow-up `chown` layer.
-
-In Kubernetes, reinforce it at the pod level so the manifest doesn't trust the image alone:
-
-```yaml
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 10001
-  readOnlyRootFilesystem: true
-  allowPrivilegeEscalation: false
-```
-
-`runAsNonRoot: true` will refuse to start a container that's still running as root. That refusal is the feature.
-
----
-
 ## The Whole Idea in One Sentence
 
-A container starts by running a program. Its lifetime is that program's lifetime, that program is PID 1, and the rest of Docker and Kubernetes is consequences of those facts.
+A container starts by running a program, and its lifetime is that program's lifetime. The rest of Docker — and most of Kubernetes — is a consequence of that one fact.
 
-For a bioinformatics workflow, that maps cleanly to how the work already wants to be expressed: one toolchain, one executable, one set of declared inputs, one set of outputs, one exit code. The image is the reproducible surface. The runtime arguments are the specific run. The pitfalls are the places where the Linux process model leaks through.
+For a bioinformatics workflow, that maps cleanly to how the work already wants to be expressed: one toolchain, one executable, one set of declared inputs, one set of outputs, one exit code. The image is the reproducible surface. The runtime arguments are the specific run.
 
-Once the model is stable, Docker and Kubernetes stop being two large topics and start being one small one with two execution surfaces.
+Once the model is stable, Docker and Kubernetes stop being two large topics and start being one small one with two execution surfaces. For the orchestration side — Deployments, Jobs, Services — see [the Kubernetes piece]({% post_url 2026-05-13-kubernetes-deployment-job-service-mental-model %}).
