@@ -4,17 +4,17 @@ title: "Understanding MCP: A Systems-Level Explanation for Computational Biologi
 date: 2026-04-30
 categories: [AI Systems]
 tags: [mcp, model-context-protocol, llm, client-server, computational-biology, systems-design]
+description: "A working mental model of Model Context Protocol (MCP) for computational biologists: client-server architecture with explicit tool contracts and an LLM acting as the client. The novelty is the caller, not the architecture."
+excerpt: "MCP is not introducing an unfamiliar architecture. It is introducing a familiar one — client, server, contract, execution — with a new kind of client. That client happens to be an LLM."
 ---
 
-I spent longer than I should have trying to understand Model Context Protocol (MCP) because many explanations started from AI hype instead of system structure.
-
-What finally made it click for me was ignoring the hype and looking at it the same way I would look at any other engineering boundary: client, server, contract, execution.
+Most explanations of Model Context Protocol (MCP) start from AI hype instead of system structure. The framing that holds up is the boring one: client, server, contract, execution.
 
 If you come from computational biology, data engineering, workflow systems, or scientific computing, MCP is not introducing an unfamiliar architecture. It is introducing a familiar one with a new kind of client.
 
 That client happens to be an LLM.
 
-Once I saw it that way, the whole thing became much easier to reason about.
+That single shift is what makes the rest of MCP straightforward to reason about.
 
 > **Key takeaways**
 >
@@ -202,7 +202,7 @@ If you do not formalize that layer, every application ends up reinventing a slig
 
 MCP exists to prevent that fragmentation.
 
-That part also made the architecture easier for me to respect. Without a protocol, it is very easy to confuse a convenient local demo with something that can actually scale across teams, tools, and environments.
+That is the work a protocol actually does. Without one, it is very easy to confuse a convenient local demo with something that can scale across teams, tools, and environments.
 
 ---
 
@@ -254,6 +254,4 @@ It is client-server architecture with explicit tool contracts and an LLM acting 
 
 If you already understand APIs, RPC, pipelines, workflow engines, or service boundaries, you already understand most of the important part. The novelty is not the architecture. The novelty is the kind of software component making the call.
 
-That framing matters because it turns MCP from something vague and trendy into something concrete and engineerable.
-
-And once it becomes engineerable, it becomes much easier to use well.
+The useful question is not "what is MCP?" It is "where in this system should the probabilistic caller sit, and where should the deterministic execution stay?" The protocol exists so that line can be drawn cleanly.
