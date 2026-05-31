@@ -172,3 +172,14 @@ Treat your `.claude/` like infrastructure, because that's exactly what it is.
 ---
 
 *Reflecting on Addy Osmani's* [Mastering AI-Assisted Development](https://www.linkedin.com/learning/mastering-ai-assisted-development) *(LinkedIn Learning).*
+
+---
+
+## Companion repos
+
+The ideas above are concrete artifacts I actually use, not theory:
+
+- **[junyu-boston/claude-playbook](https://github.com/junyu-boston/claude-playbook)** — my personal Claude Code harness, source-controlled and symlinked into `~/.claude/` on every machine. Contains the skills, slash commands, templates, and pattern log discussed in this post.
+- **[junyu-boston/ai-engineering-notes](https://github.com/junyu-boston/ai-engineering-notes)** — the longer reflection this post is distilled from, plus other notes on AI-assisted development.
+
+If this post gave you the *why* of the harness, the playbook repo is the *how*.
